@@ -1,7 +1,7 @@
 #include <Arduino.h>
 
 const String MCU_VERSION = "v1.0";
-const String MCU_BUILD_DATE ="2026 / 02 / 01";
+const String MCU_BUILD_DATE ="2026 / 02 / 28";
 
 #include <wiring.h>
 
@@ -68,7 +68,7 @@ struct out
 		int backlight_autobrightness = 1;	// 最佳化亮度		; 0: disable, 1: enable
 		const String rf_info = "nRF24l01 | Channel = 1 | 2.4GHz";	// RF 連接資訊
 		bool rf_binded = 0;					// RF輸出綁定		; 0: L, 1: R
-		bool cnc_binded = 0;				// CNC輸出綁定		; 0: L, 1: CNC
+		bool cnc_binded = 0;				// CNC輸出綁定		; 0: L, 1: R
 
 		bool valve_auto_release = 0;		// 夾管筏自動釋放	; 0: disable, 1: enable
 		int valve_auto_release_time = 30;	// 自動釋放時長		; in seconds
@@ -82,6 +82,7 @@ struct out
 struct out out;
 // =================================================================================
 
+String cmd = "";
 void hmi_update(String cmd);
 
 int mux_channel_counter = 0;
@@ -123,27 +124,59 @@ void setup() {
     digitalWrite(PIN_MUX_S3, LOW);
 
 	sys_errors[2] = true; // set HMI error until communication established
+	
 	while(true)
 	{
+		// Serial.print("Waiting for HMI communication...\n");
 		if(Serial.available())
 		{
-			String cmd = Serial.readStringUntil('\n');
-			if(cmd.startsWith("C0")) {
-				// Starting page, check MCU is on.
-				Serial.print("page 1\xff\xff\xff");
-				sys_errors[2] = false; // clear HMI error
-				break;
+			char new_cmd = (char)Serial.read();
+			// Serial.print("Received char: " + String(new_cmd) + "\n");
+			if(new_cmd == '\n')
+			{
+				// Serial.print("Received command: " + cmd + "\n");
+				if(cmd == "C0")
+				{
+					// HMI communication established.
+					Serial.print("page 1\xff\xff\xff");
+					sys_errors[2] = false; // clear HMI error
+					cmd = "";
+					break;
+				}
+				else
+				{
+					// HMI was started before MCU.
+					Serial.print("t0.txt=\"STM32 starting..\"\xff\xff\xff");
+					Serial.print("t0.pco=63488\xff\xff\xff"); // Red color
+					delay(500);
+					sys_errors[2] = false; // clear HMI error
+					cmd = "";
+					break;
+				}
+			}
+			else
+			{
+				cmd += String(new_cmd);
 			}
 		}
 	}
 }
 
-void loop() {
-	Serial.print("status.t12.bco=63488\xff\xff\xff");
+void loop()
+{
 	mux_update();
-	if(Serial.available()) {
-		String cmd = Serial.readStringUntil('\n');
-		hmi_update(cmd);
+	if(Serial.available())
+	{
+		char new_cmd = (char)Serial.read();
+		if(new_cmd == '\n')
+		{
+			hmi_update(cmd);
+			cmd = "";
+		}
+		else
+		{
+			cmd += String(new_cmd);
+		}
 	}
 }
 
@@ -340,9 +373,154 @@ void hmi_update(String cmd)
 				break;
 			}
 			case 2:
+			{
 				// Status page, refresh request.
-				// (Send relevant status data)
+				Serial.print("status.t1.bco=");
+				Serial.print((out.pump.running & 0b000001) ? 2016 : 38066);	// Green if running, gray if stopped
+				Serial.print("\xff\xff\xff");
+
+				Serial.print("status.t2.bco=");
+				Serial.print((out.pump.running & 0b000010) ? 2016 : 38066);
+				Serial.print("\xff\xff\xff");
+
+				Serial.print("status.t3.bco=");
+				Serial.print((out.pump.running & 0b000100) ? 2016 : 38066);
+				Serial.print("\xff\xff\xff");
+
+				Serial.print("status.t4.bco=");
+				Serial.print((out.pump.running & 0b001000) ? 2016 : 38066);
+				Serial.print("\xff\xff\xff");
+
+				Serial.print("status.t5.bco=");
+				Serial.print((out.pump.running & 0b010000) ? 2016 : 38066);
+				Serial.print("\xff\xff\xff");
+
+				Serial.print("status.t6.bco=");
+				Serial.print((out.pump.running & 0b100000) ? 2016 : 38066);
+				Serial.print("\xff\xff\xff");
+
+				Serial.print("status.t7.txt=\"");
+				Serial.print(out.pump.runtime[0]);
+				Serial.print(" min\"\xff\xff\xff");
+
+				Serial.print("status.t8.txt=\"");
+				Serial.print(out.pump.runtime[1]);
+				Serial.print(" min\"\xff\xff\xff");
+
+				Serial.print("status.t9.txt=\"");
+				Serial.print(out.pump.runtime[2]);
+				Serial.print(" min\"\xff\xff\xff");
+
+				Serial.print("status.t10.txt=\"");
+				Serial.print(out.pump.runtime[3]);
+				Serial.print(" min\"\xff\xff\xff");
+
+				Serial.print("status.t11.txt=\"");
+				Serial.print(out.pump.runtime[4]);
+				Serial.print(" min\"\xff\xff\xff");
+
+				Serial.print("status.t12.txt=\"");
+				Serial.print(out.pump.runtime[5]);
+				Serial.print(" min\"\xff\xff\xff");
+
+				Serial.print("status.t13.txt=\"");
+				Serial.print(out.pump.temperature[0]);
+				Serial.print("℃\"\xff\xff\xff");
+				Serial.print("status.t13.bco=");
+				Serial.print((out.pump.temperature[0] >= out.setting.pump_overheat_protect) ? 63488 : 10995);	// Red if overheat, else blue.
+				Serial.print("\xff\xff\xff");
+
+				Serial.print("status.t14.txt=\"");
+				Serial.print(out.pump.temperature[1]);
+				Serial.print("℃\"\xff\xff\xff");
+				Serial.print("status.t14.bco=");
+				Serial.print((out.pump.temperature[1] >= out.setting.pump_overheat_protect) ? 63488 : 10995);
+				Serial.print("\xff\xff\xff");
+
+				Serial.print("status.t15.txt=\"");
+				Serial.print(out.pump.temperature[2]);
+				Serial.print("℃\"\xff\xff\xff");
+				Serial.print("status.t15.bco=");
+				Serial.print((out.pump.temperature[2] >= out.setting.pump_overheat_protect) ? 63488 : 10995);
+				Serial.print("\xff\xff\xff");
+
+				Serial.print("status.t16.txt=\"");
+				Serial.print(out.pump.temperature[3]);
+				Serial.print("℃\"\xff\xff\xff");
+				Serial.print("status.t16.bco=");
+				Serial.print((out.pump.temperature[3] >= out.setting.pump_overheat_protect) ? 63488 : 10995);
+				Serial.print("\xff\xff\xff");
+
+				Serial.print("status.t17.txt=\"");
+				Serial.print(out.pump.temperature[4]);
+				Serial.print("℃\"\xff\xff\xff");
+				Serial.print("status.t17.bco=");
+				Serial.print((out.pump.temperature[4] >= out.setting.pump_overheat_protect) ? 63488 : 10995);
+				Serial.print("\xff\xff\xff");
+
+				Serial.print("status.t18.txt=\"");
+				Serial.print(out.pump.temperature[5]);
+				Serial.print("℃\"\xff\xff\xff");
+				Serial.print("status.t18.bco=");
+				Serial.print((out.pump.temperature[5] >= out.setting.pump_overheat_protect) ? 63488 : 10995);
+				Serial.print("\xff\xff\xff");
+
+				Serial.print("status.t21.txt=\"");
+				Serial.print((out.output_flow.state & 0b01) ? "ON" : "OFF");
+				Serial.print("\"\xff\xff\xff");
+				Serial.print("status.t21.pco=");
+				Serial.print((out.output_flow.state & 0b01) ? 2016 : 65535);	// Green if on, white if off.
+				Serial.print("\xff\xff\xff");
+
+				Serial.print("status.t26.txt=\"");
+				Serial.print((out.output_flow.state & 0b10) ? "ON" : "OFF");
+				Serial.print("\"\xff\xff\xff");
+				Serial.print("status.t26.pco=");
+				Serial.print((out.output_flow.state & 0b10) ? 2016 : 65535);
+				Serial.print("\xff\xff\xff");
+
+				Serial.print("status.t22.txt=\"");
+				Serial.print(out.input_signal.level[0]);
+				Serial.print(" %\"\xff\xff\xff");
+
+				Serial.print("status.t27.txt=\"");
+				Serial.print(out.input_signal.level[2]);
+				Serial.print(" %\"\xff\xff\xff");
+
+				Serial.print("status.t23.txt=\"");
+				Serial.print(out.input_signal.level[1]);
+				Serial.print("\"\xff\xff\xff");
+
+				Serial.print("status.t30.txt=\"");
+				Serial.print(out.input_signal.level[3]);
+				Serial.print(" %\"\xff\xff\xff");
+
+				Serial.print("status.t25.txt=\"");
+				Serial.print((out.input_signal.state & 0b00010) ? "ON" : "OFF");
+				Serial.print("\"\xff\xff\xff");
+
+				Serial.print("status.t24.txt=\"");
+				Serial.print((out.setting.cnc_binded) ? "R" : "L");
+				Serial.print("\"\xff\xff\xff");
+
+				Serial.print("status.t29.txt=\"");
+				Serial.print((out.setting.rf_binded) ? "R" : "L");
+				Serial.print("\"\xff\xff\xff");
+
+				Serial.print("status.t28.txt=\"");
+				Serial.print((out.rf_connected) ? "Connected" : "Searching");
+				Serial.print("\"\xff\xff\xff");
+
+				Serial.print("status.t19.txt=\"");
+				Serial.print(out.fan_level);
+				Serial.print("\"\xff\xff\xff");
+
+				Serial.print("status.t20.txt=\"");
+				Serial.print(millis() / 1000);
+				Serial.print("\"\xff\xff\xff");
+
 				break;
+			}
 			case 3:
 				// Settings1 page, refresh request.
 				// (Send relevant settings data)
@@ -359,7 +537,11 @@ void hmi_update(String cmd)
 				// Unknown command
 				break;
 		}
-	} else if(cmd.startsWith("W")) {
+
+		Serial.print("t0.txt=\"Ready\"\xff\xff\xff");
+		Serial.print("t0.pco=53213\xff\xff\xff"); // Jade green color
+	}
+	else if(cmd.startsWith("W")) {
 		// Write variable
 		int comma_index = cmd.indexOf(',');
 		if(comma_index != -1) {
