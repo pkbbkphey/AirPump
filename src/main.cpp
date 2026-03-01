@@ -1,7 +1,7 @@
 #include <Arduino.h>
 
-const String MCU_VERSION = "v1.0";
-const String MCU_BUILD_DATE ="2026 / 02 / 28";
+const String MCU_VERSION = "v1.1";
+const String MCU_BUILD_DATE ="2026 / 03 / 01";
 
 #include <wiring.h>
 
@@ -64,9 +64,9 @@ struct out
 
 	struct setting
 	{
-		int backlight_brightness = 100;		// 螢幕亮度			; 0 to 100 
-		int backlight_autobrightness = 1;	// 最佳化亮度		; 0: disable, 1: enable
-		const String rf_info = "nRF24l01 | Channel = 1 | 2.4GHz";	// RF 連接資訊
+		int backlight_autobrightness = 100;		// 最佳化亮度值			; 0 to 100 
+		int backlight_autobrightness_enabled = 1;	// 最佳化亮度		; 0: disable, 1: enable
+		const String rf_info = "nRF24l01 | Channel = 1 | 2.4 GHz";	// RF 連接資訊
 		bool rf_binded = 1;					// RF輸出綁定		; 0: L, 1: R
 		bool cnc_binded = 0;				// CNC輸出綁定		; 0: L, 1: R
 		bool manual_binded = 1;				// MANUAL輸出綁定	; 0: L, 1: R
@@ -76,7 +76,7 @@ struct out
 		int pump_overheat_protect = 30;		// 氣泵過熱溫度保護	; in degree Celsius
 
 		// const String hmi_version = "2026 / 01 / 30 | v1.0";
-		const String mcu_version = String(MCU_BUILD_DATE) + " | " + String(MCU_VERSION);
+		const String mcu_version = String(MCU_BUILD_DATE) + "  |  " + String(MCU_VERSION);
 	};
     struct setting setting;
 };
@@ -211,8 +211,7 @@ void mux_update() {
         case 6:
 		{
             // Ambient Light Sensor
-			if(out.setting.backlight_autobrightness)
-				out.setting.backlight_brightness = constrain(analogRead(PIN_MUX1_SIG) / 41, 1, 100);
+			out.setting.backlight_autobrightness = constrain(analogRead(PIN_MUX1_SIG) / 41, 1, 100);
             break;
 		}
         case 7 ... 12:
@@ -525,7 +524,7 @@ void hmi_update(String cmd)
 				Serial.print("\"\xff\xff\xff");
 
 				Serial.print("status.t31.txt=\"");
-				Serial.print((out.rf_connected) ? "Conn" : "Disc");
+				Serial.print((out.rf_connected) ? "\xD2\xD1\xDF\x42\xBD\xD3" : "\xCE\xB4\xDF\x42\xBD\xD3");	// 已連接 : 未連接
 				Serial.print("\"\xff\xff\xff");
 
 				Serial.print("status.t32.txt=\"");
@@ -547,20 +546,88 @@ void hmi_update(String cmd)
 				break;
 			}
 			case 3:
+			{
 				// Settings1 page, refresh request.
-				
+				if(out.setting.backlight_autobrightness_enabled)
+				{
+					Serial.print("settings1.t1.txt=\"");
+					Serial.print(out.setting.backlight_autobrightness);
+					Serial.print("\"\xff\xff\xff");
+					Serial.print("settings1.h0.val=");
+					Serial.print(out.setting.backlight_autobrightness);
+					Serial.print("\xff\xff\xff");
+				}
+
+				Serial.print("settings1.bt0.val=");
+				Serial.print(out.setting.backlight_autobrightness_enabled);
+				Serial.print("\xff\xff\xff");
+
+				Serial.print("settings1.t5.txt=\"");
+				Serial.print(out.setting.rf_info);
+				Serial.print("\"\xff\xff\xff");
+
+				Serial.print("settings1.r0.val=");
+				Serial.print(!out.setting.rf_binded);
+				Serial.print("\xff\xff\xff");
+				Serial.print("settings1.r1.val=");
+				Serial.print(out.setting.rf_binded);
+				Serial.print("\xff\xff\xff");
 				break;
+			}
 			case 4:
+			{
 				// Settings2 page, refresh request.
-				// (Send relevant settings data)
+				Serial.print("settings2.r0.val=");
+				Serial.print(!out.setting.cnc_binded);
+				Serial.print("\xff\xff\xff");
+				Serial.print("settings2.r1.val=");
+				Serial.print(out.setting.cnc_binded);
+				Serial.print("\xff\xff\xff");
+
+				Serial.print("settings2.r2.val=");
+				Serial.print(!out.setting.manual_binded);
+				Serial.print("\xff\xff\xff");
+				Serial.print("settings2.r3.val=");
+				Serial.print(out.setting.manual_binded);
+				Serial.print("\xff\xff\xff");
+
+				Serial.print("settings2.bt1.val=");
+				Serial.print(out.setting.valve_auto_release);
+				Serial.print("\xff\xff\xff");
+
+				Serial.print("settings2.t1.txt=\"");
+				Serial.print(out.setting.valve_auto_release_time);
+				Serial.print("\"\xff\xff\xff");
+				Serial.print("settings2.h0.val=");
+				Serial.print(out.setting.valve_auto_release_time);
+				Serial.print("\xff\xff\xff");
+
+				Serial.print("settings2.t2.txt=\"");
+				Serial.print(out.setting.pump_overheat_protect);
+				Serial.print("\"\xff\xff\xff");
+				Serial.print("settings2.h1.val=");
+				Serial.print(out.setting.pump_overheat_protect);
+				Serial.print("\xff\xff\xff");
 				break;
+			}
 			case 5:
+			{
 				// Settings3 page, refresh request.
-				// (Send relevant settings data)
+				Serial.print("settings3.t2.txt=\"");
+				Serial.print(out.setting.mcu_version);
+				Serial.print("\"\xff\xff\xff");
 				break;
+			}
 			default:
 				// Unknown command
 				break;
+		}
+
+		if(out.setting.backlight_autobrightness_enabled)
+		{
+			Serial.print("dim=");
+			Serial.print(out.setting.backlight_autobrightness);
+			Serial.print("\xff\xff\xff");
 		}
 
 		Serial.print("t0.txt=\"");
@@ -577,7 +644,7 @@ void hmi_update(String cmd)
 			String value = cmd.substring(comma_index + 1);
 			switch(var_id) {
 				case 0:
-					out.setting.backlight_autobrightness = value.toInt();
+					out.setting.backlight_autobrightness_enabled = value.toInt();
 					break;
 				case 1:
 					out.setting.rf_binded = value.toInt();
@@ -586,12 +653,15 @@ void hmi_update(String cmd)
 					out.setting.cnc_binded = value.toInt();
 					break;
 				case 3:
-					out.setting.valve_auto_release = value.toInt();
+					out.setting.manual_binded = value.toInt();
 					break;
 				case 4:
-					out.setting.valve_auto_release_time = value.toInt();
+					out.setting.valve_auto_release = value.toInt();
 					break;
 				case 5:
+					out.setting.valve_auto_release_time = value.toInt();
+					break;
+				case 6:
 					out.setting.pump_overheat_protect = value.toInt();
 					break;
 				default:
