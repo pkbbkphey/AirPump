@@ -540,7 +540,7 @@ void hmi_update(String cmd)
 				Serial.print("\"\xff\xff\xff");
 
 				Serial.print("status.t20.txt=\"");
-				Serial.print(millis() / 1000);
+				Serial.print(millis() / 60000);
 				Serial.print("\"\xff\xff\xff");
 
 				break;
