@@ -3,5 +3,7 @@
 
 #include <Arduino.h>
 
+extern String cmd;
+void hmi_update(String cmd);
 
 #endif
