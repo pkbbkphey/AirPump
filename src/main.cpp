@@ -6,6 +6,8 @@
 #include <out.h>
 #include <wiring.h>
 
+constexpr int mux_update_interval_ms = 2;
+unsigned long last_mux_update_time = 0;
 int mux_channel_counter = 0;
 void mux_update();
 
@@ -106,7 +108,14 @@ void loop()
 int cnc_rotary_switch_state = 0b000001;
 int manual_rotary_switch_state = 0b000001;
 void mux_update() {
+	if((millis() - last_mux_update_time) < mux_update_interval_ms)
+		return;
+	last_mux_update_time = millis();
 	// MUX1 update
+	// Serial.print(analogRead(PIN_MUX1_SIG));
+	// Serial.print(" ");
+	// if(mux_channel_counter == 15) Serial.print("\n");
+
     switch (mux_channel_counter) {
         case 0 ... 5:
         {
@@ -191,9 +200,9 @@ void mux_update() {
 			int r_level = map(analogRead(PIN_MUX1_SIG), 0, 1023, 0, 100);
 			out.input_signal.level[2] = constrain(r_level, 0, 100);
 			if(r_level < 10)
-				out.input_signal.state &= ~0b00010;
+				out.input_signal.state &= ~0b00100;
 			else
-				out.input_signal.state |= 0b00010;
+				out.input_signal.state |= 0b00100;
             break;
 		}
     }
