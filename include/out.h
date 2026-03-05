@@ -30,7 +30,7 @@
  */
 
 // MCU => HMI
-struct out
+struct Out
 {
 	String message = "一切正常";
 
@@ -51,7 +51,7 @@ struct out
 
 	struct input_signal
 	{
-		int selected = 0;					// {0: L, 1: CNC, 2: R, 3: RF, 4: MANUAL}
+		int selected = -1;					// {-1: none,0: L, 1: CNC, 2: R, 3: RF, 4: MANUAL}
 		int state = 0b00000;					// bit4: MANUAL, bit3: RF, bit2: R, bit1: CNC, bit0: L
 		int level[5] = {0, 1, 0, 0, 1}; 		// levels for L, CNC, R, RF, MANUAL; 0-100, 1-6, 0-100, 0-100, 1-6
 	};
@@ -63,7 +63,9 @@ struct out
 
 	struct setting
 	{
-		int backlight_autobrightness = 100;		// 最佳化亮度值			; 0 to 100 
+		const float backlight_autobrightness_rate = 0.98;
+		int backlight_autobrightness = 100;		// 最佳化亮度值			; 0 to 100
+		float backlight_autobrightness_r = 100;	// 最佳化亮度值（記錄用）; 0 to 100
 		int backlight_autobrightness_enabled = 1;	// 最佳化亮度		; 0: disable, 1: enable
 		const String rf_info = "nRF24l01 | Channel = 1 | 2.4 GHz";	// RF 連接資訊
 		bool rf_binded = 1;					// RF輸出綁定		; 0: L, 1: R
@@ -79,7 +81,7 @@ struct out
 	};
     struct setting setting;
 };
-extern struct out out;
+
 // =================================================================================
 
 

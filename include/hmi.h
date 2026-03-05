@@ -2,8 +2,17 @@
 #define __HMI_H__
 
 #include <Arduino.h>
+#include <out.h>
+#include <sys.h>
 
-extern String cmd;
-void hmi_update(String cmd);
+class Hmi
+{
+public:
+    Hmi() {};
+    void wait_for_booting(Sys &sys);
+    void update(Out &out, Sys &sys);
+private:
+    String cmd = "";
+};
 
 #endif

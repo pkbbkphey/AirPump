@@ -5,11 +5,65 @@
 #include <out.h>
 #include <wiring.h>
 
-String cmd = "";
-struct out out;
-
-void hmi_update(String cmd)
+void Hmi::wait_for_booting(Sys &sys)
 {
+	while(true)
+	{
+		// Serial.print("Waiting for HMI communication...\n");
+		if(Serial.available())
+		{
+			char new_cmd = (char)Serial.read();
+			// Serial.print("Received char: " + String(new_cmd) + "\n");
+			if(new_cmd == '\n')
+			{
+				// Serial.print("Received command: " + cmd + "\n");
+				if(cmd == "C0")
+				{
+					// HMI communication established.
+					Serial.print("page 1\xff\xff\xff");
+					sys.errors[2] = false; // clear HMI error
+					cmd = "";
+					return;
+				}
+				else
+				{
+					// HMI was started before MCU.
+					Serial.print("t0.txt=\"");
+					Serial.print("STM32\x86\xA2\x84\xD3\xD6\xD0...");	// STM32啟動中...
+					Serial.print("\"\xff\xff\xff");
+					Serial.print("t0.pco=63488\xff\xff\xff"); // Red color
+					delay(500);
+					sys.errors[2] = false; // clear HMI error
+					cmd = "";
+					return;
+				}
+			}
+			else
+			{
+				cmd += String(new_cmd);
+			}
+		}
+	}
+}
+
+void Hmi::update(Out &out, Sys &sys)
+{
+	if(Serial.available())
+	{
+		char new_cmd = (char)Serial.read();
+		if(new_cmd == '\n')
+		{
+			// do nothing
+		}
+		else
+		{
+			cmd += String(new_cmd);
+			return;
+		}
+	}
+	else
+		return;
+
 	// Process command from HMI
 	if(cmd.startsWith("C")) {
 		// Simple command or request
@@ -349,5 +403,7 @@ void hmi_update(String cmd)
 			}
 		}
 	}
+
+	cmd = "";
 }
 
