@@ -10,6 +10,7 @@ class Mux
 public:
     Mux() {};
     void update(Out &out, Sys &sys);
+    void debug();
 private:
     const int mux_update_interval_ms = 2;
     unsigned long last_mux_update_time = 0;

@@ -54,6 +54,8 @@ struct Out
 		int selected = -1;					// {-1: none,0: L, 1: CNC, 2: R, 3: RF, 4: MANUAL}
 		int state = 0b00000;					// bit4: MANUAL, bit3: RF, bit2: R, bit1: CNC, bit0: L
 		int level[5] = {0, 1, 0, 0, 1}; 		// levels for L, CNC, R, RF, MANUAL; 0-100, 1-6, 0-100, 0-100, 1-6
+		int cnc_rotary_switch_state = 0b000001;
+		int manual_rotary_switch_state = 0b000001;
 	};
     struct input_signal input_signal;
 

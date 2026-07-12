@@ -363,11 +363,27 @@ void Hmi::update(Out &out, Sys &sys)
 			Serial.print("\xff\xff\xff");
 		}
 
-		Serial.print("t0.txt=\"");
-		Serial.print("\xBE\xCD\xBE\x77");	// 就緒
-		Serial.print("\"\xff\xff\xff");
+		if(sys.errors[0] || sys.errors[1] || sys.errors[2])
+		{
+			Serial.print("t0.txt=\"");
+			if(sys.errors[0])
+				Serial.print("0");	// 過熱
+			if(sys.errors[1])
+				Serial.print("1");	// 介面錯誤
+			if(sys.errors[2])
+				Serial.print("2");	// HMI錯誤
+			Serial.print("\"\xff\xff\xff");
 
-		Serial.print("t0.pco=53213\xff\xff\xff"); // Jade green color
+			Serial.print("t0.pco=63488\xff\xff\xff"); // Red color
+		}
+		else
+		{
+			Serial.print("t0.txt=\"");
+			Serial.print("\xBE\xCD\xBE\x77");	// 就緒
+			Serial.print("\"\xff\xff\xff");
+
+			Serial.print("t0.pco=53213\xff\xff\xff"); // Jade green color
+		}
 	}
 	else if(cmd.startsWith("W")) {
 		// Write variable
