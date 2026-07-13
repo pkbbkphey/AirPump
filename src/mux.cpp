@@ -6,20 +6,28 @@
 #include <sys.h>
 #include <wiring.h>
 
+double mux1_raw = 0, mux2_raw = 0;
+int mux1_cnt = 0, mux2_cnt = 0;
 void Mux::update(Out &out, Sys &sys) {
+	mux1_raw += analogRead(PIN_MUX1_SIG);
+	mux1_cnt++;
+	mux2_raw += analogRead(PIN_MUX2_SIG);
+	mux2_cnt++;
+
+	// ==============================================================
 	if((millis() - last_mux_update_time) < mux_update_interval_ms)
 		return;
 	last_mux_update_time = millis();
-	// MUX1 update
-	// Serial.print(analogRead(PIN_MUX1_SIG));
-	// Serial.print(" ");
-	// if(mux_channel_counter == 15) Serial.print("\n");
 
+	mux1_raw = double(mux1_raw) / mux1_cnt;
+	mux2_raw = double(mux2_raw) / mux2_cnt;
+
+	// MUX1 update
     switch (mux_channel_counter) {
         case 0 ... 5:
         {
             // Pump Temperature Sensors 1 to 6
-            float temperature = analogRead(PIN_MUX1_SIG) * (3.3 / 4095.0) * 100.0 - 15.0;
+            float temperature = mux1_raw * (3.3 / 4095.0) * 100.0 - 15.0;
             out.pump.temperature[mux_channel_counter] = static_cast<int>(temperature);
 			if(mux_channel_counter == 5)
 			{
@@ -40,7 +48,7 @@ void Mux::update(Out &out, Sys &sys) {
 		{
             // Ambient Light Sensor
 			float backlight_autobrightness_new = 
-				analogRead(PIN_MUX1_SIG) * 0.6 * (1-out.setting.backlight_autobrightness_rate) +
+				mux1_raw * 0.6 * (1-out.setting.backlight_autobrightness_rate) +
 				out.setting.backlight_autobrightness_r * out.setting.backlight_autobrightness_rate;
 			out.setting.backlight_autobrightness_r = backlight_autobrightness_new;
 
@@ -50,7 +58,7 @@ void Mux::update(Out &out, Sys &sys) {
         case 7 ... 12:
 		{
             // CNC Input Signal Level (Rotary Switch)
-			bool cnc_in = (analogRead(PIN_MUX1_SIG) > 512);
+			bool cnc_in = (mux1_raw > 512);
 			if(cnc_in)
 				out.input_signal.cnc_rotary_switch_state |= (1 << (mux_channel_counter - 7));
 			else
@@ -80,7 +88,7 @@ void Mux::update(Out &out, Sys &sys) {
         case 13:
 		{
             // CNC Input (Optalcoupler)
-			bool cnc_in = (analogRead(PIN_MUX1_SIG) > 512);
+			bool cnc_in = (mux1_raw > 512);
 			if(cnc_in)
 				out.input_signal.state |= 0b0010;
 			else
@@ -90,7 +98,7 @@ void Mux::update(Out &out, Sys &sys) {
         case 14:
 		{
             // L Input Signal Level (Potentiometer)
-			int l_level = map(analogRead(PIN_MUX1_SIG), 0, 1023, 0, 100);
+			int l_level = map(mux1_raw, 0, 1023, 0, 100);
 			out.input_signal.level[0] = constrain(l_level, 0, 100);
 			if(l_level < 10)
 				out.input_signal.state &= ~0b0001;
@@ -101,7 +109,7 @@ void Mux::update(Out &out, Sys &sys) {
         case 15:
 		{
             // R Input Signal Level (Potentiometer)
-			int r_level = map(analogRead(PIN_MUX1_SIG), 0, 1023, 0, 100);
+			int r_level = map(mux1_raw, 0, 1023, 0, 100);
 			out.input_signal.level[2] = constrain(r_level, 0, 100);
 			if(r_level < 10)
 				out.input_signal.state &= ~0b00100;
@@ -116,7 +124,7 @@ void Mux::update(Out &out, Sys &sys) {
         case 7 ... 12:
 		{
             // MANUAL Input Signal Level (Rotary Switch)
-			bool manual_in = (analogRead(PIN_MUX2_SIG) > 512);
+			bool manual_in = (mux2_raw > 512);
 			if(manual_in)
 				out.input_signal.manual_rotary_switch_state |= (1 << (mux_channel_counter - 7));
 			else
@@ -146,7 +154,7 @@ void Mux::update(Out &out, Sys &sys) {
         case 13:
 		{
             // MANUAL Input (Switch)
-			bool manual_in = (analogRead(PIN_MUX2_SIG) > 512);
+			bool manual_in = (mux2_raw > 512);
 			if(manual_in)
 				out.input_signal.state |= 0b10000;
 			else
@@ -160,7 +168,169 @@ void Mux::update(Out &out, Sys &sys) {
     digitalWrite(PIN_MUX_S1, (mux_channel_counter >> 1) & 0x01);
     digitalWrite(PIN_MUX_S2, (mux_channel_counter >> 2) & 0x01);
     digitalWrite(PIN_MUX_S3, (mux_channel_counter >> 3) & 0x01);
+
+	mux1_raw = 0;
+	mux2_raw = 0;
+	mux1_cnt = 0;
+	mux2_cnt = 0;
+
 }
+
+// void Mux::update(Out &out, Sys &sys) {
+// 	if((millis() - last_mux_update_time) < mux_update_interval_ms)
+// 		return;
+// 	last_mux_update_time = millis();
+// 	// MUX1 update
+// 	// Serial.print(analogRead(PIN_MUX1_SIG));
+// 	// Serial.print(" ");
+// 	// if(mux_channel_counter == 15) Serial.print("\n");
+
+//     switch (mux_channel_counter) {
+//         case 0 ... 5:
+//         {
+//             // Pump Temperature Sensors 1 to 6
+//             float temperature = analogRead(PIN_MUX1_SIG) * (3.3 / 4095.0) * 100.0 - 15.0;
+//             out.pump.temperature[mux_channel_counter] = static_cast<int>(temperature);
+// 			if(mux_channel_counter == 5)
+// 			{
+// 				sys.errors[0] = false; // clear overtemp error
+// 				if(out.pump.temperature[0] >= out.setting.pump_overheat_protect ||
+// 				   out.pump.temperature[1] >= out.setting.pump_overheat_protect ||
+// 				   out.pump.temperature[2] >= out.setting.pump_overheat_protect ||
+// 				   out.pump.temperature[3] >= out.setting.pump_overheat_protect ||
+// 				   out.pump.temperature[4] >= out.setting.pump_overheat_protect ||
+// 				   out.pump.temperature[5] >= out.setting.pump_overheat_protect)
+// 				{
+// 					sys.errors[0] = true; // overtemp error
+// 				}
+// 			}
+//             break;
+//         }
+//         case 6:
+// 		{
+//             // Ambient Light Sensor
+// 			float backlight_autobrightness_new = 
+// 				analogRead(PIN_MUX1_SIG) * 0.6 * (1-out.setting.backlight_autobrightness_rate) +
+// 				out.setting.backlight_autobrightness_r * out.setting.backlight_autobrightness_rate;
+// 			out.setting.backlight_autobrightness_r = backlight_autobrightness_new;
+
+// 			out.setting.backlight_autobrightness = constrain((int)backlight_autobrightness_new, 1, 100);
+//             break;
+// 		}
+//         case 7 ... 12:
+// 		{
+//             // CNC Input Signal Level (Rotary Switch)
+// 			bool cnc_in = (analogRead(PIN_MUX1_SIG) > 512);
+// 			if(cnc_in)
+// 				out.input_signal.cnc_rotary_switch_state |= (1 << (mux_channel_counter - 7));
+// 			else
+// 				out.input_signal.cnc_rotary_switch_state &= ~(1 << (mux_channel_counter - 7));
+// 			if(mux_channel_counter == 12)
+// 			{
+// 				sys.errors[1] = false; // clear interface error
+// 				if(out.input_signal.cnc_rotary_switch_state == 0b000000)
+// 					break;
+// 				if(out.input_signal.cnc_rotary_switch_state == 0b000001)
+// 					out.input_signal.level[1] = 1;
+// 				else if(out.input_signal.cnc_rotary_switch_state == 0b000010)
+// 					out.input_signal.level[1] = 2;
+// 				else if(out.input_signal.cnc_rotary_switch_state == 0b000100)
+// 					out.input_signal.level[1] = 3;
+// 				else if(out.input_signal.cnc_rotary_switch_state == 0b001000)
+// 					out.input_signal.level[1] = 4;
+// 				else if(out.input_signal.cnc_rotary_switch_state == 0b010000)
+// 					out.input_signal.level[1] = 5;
+// 				else if(out.input_signal.cnc_rotary_switch_state == 0b100000)
+// 					out.input_signal.level[1] = 6;
+// 				else
+// 					sys.errors[1] = true; // interface error
+// 			}		
+//             break;
+// 		}
+//         case 13:
+// 		{
+//             // CNC Input (Optalcoupler)
+// 			bool cnc_in = (analogRead(PIN_MUX1_SIG) > 512);
+// 			if(cnc_in)
+// 				out.input_signal.state |= 0b0010;
+// 			else
+// 				out.input_signal.state &= ~0b0010;
+//             break;
+// 		}
+//         case 14:
+// 		{
+//             // L Input Signal Level (Potentiometer)
+// 			int l_level = map(analogRead(PIN_MUX1_SIG), 0, 1023, 0, 100);
+// 			out.input_signal.level[0] = constrain(l_level, 0, 100);
+// 			if(l_level < 10)
+// 				out.input_signal.state &= ~0b0001;
+// 			else
+// 				out.input_signal.state |= 0b0001;
+//             break;
+// 		}
+//         case 15:
+// 		{
+//             // R Input Signal Level (Potentiometer)
+// 			int r_level = map(analogRead(PIN_MUX1_SIG), 0, 1023, 0, 100);
+// 			out.input_signal.level[2] = constrain(r_level, 0, 100);
+// 			if(r_level < 10)
+// 				out.input_signal.state &= ~0b00100;
+// 			else
+// 				out.input_signal.state |= 0b00100;
+//             break;
+// 		}
+//     }
+
+// 	// MUX2 update
+// 	switch (mux_channel_counter) {
+//         case 7 ... 12:
+// 		{
+//             // MANUAL Input Signal Level (Rotary Switch)
+// 			bool manual_in = (analogRead(PIN_MUX2_SIG) > 512);
+// 			if(manual_in)
+// 				out.input_signal.manual_rotary_switch_state |= (1 << (mux_channel_counter - 7));
+// 			else
+// 				out.input_signal.manual_rotary_switch_state &= ~(1 << (mux_channel_counter - 7));
+// 			if(mux_channel_counter == 12)
+// 			{
+// 				// sys_errors[1] = false; // clear interface error (cleared earlier)
+// 				if(out.input_signal.manual_rotary_switch_state == 0b000000)
+// 					break;
+// 				if(out.input_signal.manual_rotary_switch_state == 0b000001)
+// 					out.input_signal.level[4] = 1;
+// 				else if(out.input_signal.manual_rotary_switch_state == 0b000010)
+// 					out.input_signal.level[4] = 2;
+// 				else if(out.input_signal.manual_rotary_switch_state == 0b000100)
+// 					out.input_signal.level[4] = 3;
+// 				else if(out.input_signal.manual_rotary_switch_state == 0b001000)
+// 					out.input_signal.level[4] = 4;
+// 				else if(out.input_signal.manual_rotary_switch_state == 0b010000)
+// 					out.input_signal.level[4] = 5;
+// 				else if(out.input_signal.manual_rotary_switch_state == 0b100000)
+// 					out.input_signal.level[4] = 6;
+// 				else
+// 					sys.errors[1] = true; // interface error
+// 			}		
+//             break;
+// 		}
+//         case 13:
+// 		{
+//             // MANUAL Input (Switch)
+// 			bool manual_in = (analogRead(PIN_MUX2_SIG) > 512);
+// 			if(manual_in)
+// 				out.input_signal.state |= 0b10000;
+// 			else
+// 				out.input_signal.state &= ~0b10000;
+//             break;
+// 		}
+// 	}
+	
+//     mux_channel_counter = (mux_channel_counter + 1) % 16;
+//     digitalWrite(PIN_MUX_S0, (mux_channel_counter >> 0) & 0x01);
+//     digitalWrite(PIN_MUX_S1, (mux_channel_counter >> 1) & 0x01);
+//     digitalWrite(PIN_MUX_S2, (mux_channel_counter >> 2) & 0x01);
+//     digitalWrite(PIN_MUX_S3, (mux_channel_counter >> 3) & 0x01);
+// }
 
 void Mux::debug()
 {

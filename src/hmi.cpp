@@ -79,35 +79,35 @@ void Hmi::update(Out &out, Sys &sys)
 			{
 				// Home page, refresh request.
 				Serial.print("home.q0.picc=");
-				Serial.print(out.output_flow.level + 6);
+				Serial.print(out.pump.level + 6);
 				Serial.print("\xff\xff\xff");
 
 				Serial.print("home.q1.picc=");
-				Serial.print(((out.output_flow.state & 0b01) ? 7 : 6));
+				Serial.print((((out.valve.l_percent > 0) && (out.pump.level > 0)) ? 7 : 6));
 				Serial.print("\xff\xff\xff");
 
 				Serial.print("home.q2.picc=");
-				Serial.print(((out.output_flow.state & 0b10) ? 7 : 6));
+				Serial.print((((out.valve.r_percent > 0) && (out.pump.level > 0)) ? 7 : 6));
 				Serial.print("\xff\xff\xff");
 
 				Serial.print("home.q3.picc=");
-				Serial.print((out.input_signal.selected == 0) ? 8 : ((out.input_signal.state & 0b00001) ? 7 : 6));
+				Serial.print((out.input_signal.selected & 0b00001) ? 8 : ((out.input_signal.state & 0b00001) ? 7 : 6));
 				Serial.print("\xff\xff\xff");
 
 				Serial.print("home.q4.picc=");
-				Serial.print((out.input_signal.selected == 1) ? 8 : ((out.input_signal.state & 0b00010) ? 7 : 6));
+				Serial.print((out.input_signal.selected & 0b00010) ? 8 : ((out.input_signal.state & 0b00010) ? 7 : 6));
 				Serial.print("\xff\xff\xff");
 
 				Serial.print("home.q5.picc=");
-				Serial.print((out.input_signal.selected == 2) ? 8 : ((out.input_signal.state & 0b00100) ? 7 : 6));
+				Serial.print((out.input_signal.selected & 0b00100) ? 8 : ((out.input_signal.state & 0b00100) ? 7 : 6));
 				Serial.print("\xff\xff\xff");
 
 				Serial.print("home.q6.picc=");
-				Serial.print((out.input_signal.selected == 4) ? 8 : ((out.input_signal.state & 0b10000) ? 7 : 6));
+				Serial.print((out.input_signal.selected & 0b10000) ? 8 : ((out.input_signal.state & 0b10000) ? 7 : 6));
 				Serial.print("\xff\xff\xff");
 
 				Serial.print("home.q7.picc=");
-				Serial.print((out.input_signal.selected == 3) ? 8 : ((out.input_signal.state & 0b01000) ? 7 : 6));
+				Serial.print((out.input_signal.selected & 0b01000) ? 8 : ((out.input_signal.state & 0b01000) ? 7 : 6));
 				Serial.print("\xff\xff\xff");
 				break;
 			}
@@ -211,17 +211,17 @@ void Hmi::update(Out &out, Sys &sys)
 				Serial.print("\xff\xff\xff");
 
 				Serial.print("status.t21.txt=\"");
-				Serial.print((out.output_flow.state & 0b01) ? "ON" : "OFF");
+				Serial.print((out.valve.l_percent > 0) ? "ON" : "OFF");
 				Serial.print("\"\xff\xff\xff");
 				Serial.print("status.t21.pco=");
-				Serial.print((out.output_flow.state & 0b01) ? 2016 : 65535);	// Green if on, white if off.
+				Serial.print((out.valve.l_percent > 0) ? 2016 : 65535);	// Green if on, white if off.
 				Serial.print("\xff\xff\xff");
 
 				Serial.print("status.t26.txt=\"");
-				Serial.print((out.output_flow.state & 0b10) ? "ON" : "OFF");
+				Serial.print((out.valve.r_percent > 0) ? "ON" : "OFF");
 				Serial.print("\"\xff\xff\xff");
 				Serial.print("status.t26.pco=");
-				Serial.print((out.output_flow.state & 0b10) ? 2016 : 65535);
+				Serial.print((out.valve.r_percent > 0) ? 2016 : 65535);
 				Serial.print("\xff\xff\xff");
 
 				Serial.print("status.t22.txt=\"");

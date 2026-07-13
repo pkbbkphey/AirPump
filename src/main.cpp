@@ -39,7 +39,7 @@ void setup() {
 	pinMode(PIN_LED, OUTPUT);
 	// FanPWM.attach(PIN_FanPWM);
 	// FanPWM.write(90);
-	analogWrite(PIN_FanPWM, 5);
+	analogWrite(PIN_FanPWM, 0);
 
     digitalWrite(PIN_MUX_S0, LOW);
     digitalWrite(PIN_MUX_S1, LOW);
@@ -62,5 +62,21 @@ void loop()
 	// leds[1] = (millis() % 1000 < 500) ? CRGB::Green : CRGB::Black;
 	// FastLED.show();
 	
+	// Determine the pump level based on input signals and settings
+	int l_level = 0;
+	l_level = out.input_signal.level[0];
+	l_level = ((!out.setting.cnc_binded) 	&& (out.input_signal.level[1] > l_level)) ? out.input_signal.level[1] : l_level;
+	l_level = ((!out.setting.rf_binded) 	&& (out.input_signal.level[3] > l_level)) ? out.input_signal.level[3] : l_level;
+	l_level = ((!out.setting.manual_binded) && (out.input_signal.level[4] > l_level)) ? out.input_signal.level[4] : l_level;
+	int r_level = 0;
+	r_level = out.input_signal.level[2];
+	r_level = ((!out.setting.cnc_binded) 	&& (out.input_signal.level[1] > r_level)) ? out.input_signal.level[1] : r_level;
+	r_level = ((!out.setting.rf_binded) 	&& (out.input_signal.level[3] > r_level)) ? out.input_signal.level[3] : r_level;
+	r_level = ((!out.setting.manual_binded) && (out.input_signal.level[4] > r_level)) ? out.input_signal.level[4] : r_level;
+	out.pump.level = constrain(l_level + r_level, 0, 6);
+
+	// Determine the left and right valves percentages based on the individual target levels
+	out.valve.l_percent = (l_level >= r_level) ? 100 : (double(l_level) / double(r_level)) * 100.0;
+	out.valve.r_percent = (r_level >= l_level) ? 100 : (double(r_level) / double(l_level)) * 100.0;
 }
 

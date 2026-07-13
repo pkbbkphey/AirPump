@@ -1,3 +1,5 @@
+// Main data structure for hardware status and settings
+
 #ifndef __OUT_H__
 #define __OUT_H__
 
@@ -29,29 +31,38 @@
  *    5     pump_overheat_protect 氣泵過熱溫度保護
  */
 
-// MCU => HMI
+// Main data structure for hardware status and settings
 struct Out
 {
-	String message = "一切正常";
+	// String message = "一切正常";
 
 	struct pump
 	{
+		int level = 0;									// 0 to 6, the number of pumps running
 		int running = 0b000000;							// bit0: pump1, bit1: pump2, bit2: pump3, bit3: pump4, bit4: pump5, bit5: pump6
 		int runtime[6] = {0, 0, 0, 0, 0, 0}; 			// runtime minutes for pumps 1 to 6
 		int temperature[6] = {25, 25, 25, 25, 25, 25}; 	// temperature sensors 1 to 6
 	};
     struct pump pump;
 
-	struct output_flow
+	struct valve
 	{
-		int state = 0b00;					// bit1: R, bit0: L
-		int level = 0;						// 0 to 6
+		int l_percent = 0;	// 0 to 100, 0 is fully closed, 100 is fully open
+		int r_percent = 0;	// 0 to 100, 0 is fully closed, 100 is fully open
 	};
-    struct output_flow output_flow;
+	struct valve valve;
+
+	// struct output_flow	// replaced by valve and pump
+	// {
+	// 	int state = 0b00;					// bit1: R, bit0: L
+	// 	int level = 0;						// 0 to 6
+	// };
+    // struct output_flow output_flow;
 
 	struct input_signal
 	{
-		int selected = -1;					// {-1: none,0: L, 1: CNC, 2: R, 3: RF, 4: MANUAL}
+		// int selected = -1;					// {-1: none,0: L, 1: CNC, 2: R, 3: RF, 4: MANUAL}
+		int selected = 0b00000;					// bit4: MANUAL, bit3: RF, bit2: R, bit1: CNC, bit0: L
 		int state = 0b00000;					// bit4: MANUAL, bit3: RF, bit2: R, bit1: CNC, bit0: L
 		int level[5] = {0, 1, 0, 0, 1}; 		// levels for L, CNC, R, RF, MANUAL; 0-100, 1-6, 0-100, 0-100, 1-6
 		int cnc_rotary_switch_state = 0b000001;
