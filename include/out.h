@@ -38,10 +38,15 @@ struct Out
 
 	struct pump
 	{
-		int level = 0;									// 0 to 6, the number of pumps running
-		int running = 0b000000;							// bit0: pump1, bit1: pump2, bit2: pump3, bit3: pump4, bit4: pump5, bit5: pump6
-		int runtime[6] = {0, 0, 0, 0, 0, 0}; 			// runtime minutes for pumps 1 to 6
+		int level_target = 0;							// 0 to 6, the target number of pumps running
+		int level_target_r = 0;							// record
+		int level_actual = 0;							// 0 to 6, the actual number of pumps running
+		int running = 0b000000;							// bit5: pump6, bit4: pump5, bit3: pump4, bit2: pump3, bit1: pump2, bit0: pump1
+		uint32_t runtime[6] = {0, 0, 0, 0, 0, 0}; 		// runtime milliseconds for pumps 1 to 6
 		int temperature[6] = {25, 25, 25, 25, 25, 25}; 	// temperature sensors 1 to 6
+		const uint32_t pump_rearrange_time = 60000;		// in milliseconds
+		uint32_t last_pump_rearrange_time = 0;			// in milliseconds
+		uint32_t last_pump_rearrange_runtime[6] = {0, 0, 0, 0, 0, 0};	// individual runtime the moment before rearrange, in milliseconds
 	};
     struct pump pump;
 

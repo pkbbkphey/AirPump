@@ -75,7 +75,7 @@ void loop()
 	r_level = ((out.setting.cnc_binded) 	&& (out.input_signal.level[1] > r_level) && (out.input_signal.state & 0b00010) >> 1) 	? out.input_signal.level[1] : r_level;
 	r_level = ((out.setting.rf_binded) 		&& (out.input_signal.level[3] / 14.3 > r_level)) 										? out.input_signal.level[3] : r_level;
 	r_level = ((out.setting.manual_binded) 	&& (out.input_signal.level[4] > r_level) && (out.input_signal.state & 0b10000) >> 4) 	? out.input_signal.level[4] : r_level;
-	out.pump.level = constrain(l_level + r_level, 0, 6);
+	out.pump.level_target = constrain(l_level + r_level, 0, 6);
 
 	// Update panel status
 	// out.input_signal.state = (out.input_signal.level[0] > 0);
@@ -88,14 +88,11 @@ void loop()
 	out.input_signal.selected += out.setting.cnc_binded ? 
 								(((out.input_signal.state & 0b00010) && (out.input_signal.level[1] >= r_level) && (r_level > 0)) << 1) :
 								(((out.input_signal.state & 0b00010) && (out.input_signal.level[1] >= l_level) && (l_level > 0)) << 1);
+								// True iff is a leader in its own track (L or R track, depending on cnc_binded setting)
 	out.input_signal.selected += ((out.input_signal.level[2] / 14.3 >= r_level) && (r_level > 0)) << 2;
-	// out.input_signal.selected += (((!out.setting.rf_binded) && (out.input_signal.level[3] / 14.3 >= l_level) && (l_level > 0)) || 
-	// 							  ((out.setting.rf_binded)  && (out.input_signal.level[3] / 14.3 >= r_level) && (r_level > 0))) << 3;
 	out.input_signal.selected += out.setting.rf_binded ?
 								(((out.input_signal.state & 0b00100) && (out.input_signal.level[3] / 14.3 >= r_level) && (r_level > 0)) << 3) :
 								(((out.input_signal.state & 0b00100) && (out.input_signal.level[3] / 14.3 >= l_level) && (l_level > 0)) << 3);
-	// out.input_signal.selected += (((!out.setting.manual_binded) && (out.input_signal.level[4] >= l_level) && (l_level > 0)) || 
-	// 							  ((out.setting.manual_binded)  && (out.input_signal.level[4] >= r_level) && (r_level > 0))) << 4;
 	out.input_signal.selected += out.setting.manual_binded ?
 								(((out.input_signal.state & 0b10000) && (out.input_signal.level[4] >= r_level) && (r_level > 0)) << 4) :
 								(((out.input_signal.state & 0b10000) && (out.input_signal.level[4] >= l_level) && (l_level > 0)) << 4);
@@ -103,5 +100,55 @@ void loop()
 	// Determine the left and right valves percentages based on the individual target levels
 	out.valve.l_percent = (l_level >= r_level) ? 100 : (double(l_level) / double(r_level)) * 100.0;
 	out.valve.r_percent = (r_level >= l_level) ? 100 : (double(r_level) / double(l_level)) * 100.0;
+
+	// Pump manager
+	// Calculate individual pump runtime
+	uint32_t pump_rearrange_dt = millis() - out.pump.last_pump_rearrange_time;
+	for(int i = 0; i < 6; ++ i)
+	{
+		if(out.pump.running & (1 << i))
+		{
+			out.pump.runtime[i] = out.pump.last_pump_rearrange_runtime[i] + pump_rearrange_dt;
+		}
+	}
+
+	// Pumps rearranging
+	if((pump_rearrange_dt >= out.pump.pump_rearrange_time) ||
+		(out.pump.level_target != out.pump.level_target_r) ||
+		sys.errors[0])
+	{
+		uint32_t _now = millis();
+		out.pump.last_pump_rearrange_time = _now;
+		// out.pump.last_pump_rearrange_time_ind[0] = now;
+		// out.pump.last_pump_rearrange_time_ind[1] = now;
+		// out.pump.last_pump_rearrange_time_ind[2] = now;
+		// out.pump.last_pump_rearrange_time_ind[3] = now;
+		// out.pump.last_pump_rearrange_time_ind[4] = now;
+		// out.pump.last_pump_rearrange_time_ind[5] = now;
+
+		// Push the available (not overtemp) pumps into a map
+		std::vector<std::pair<int, uint32_t>> pumpId_runtime;
+		for(int i = 0; i < 6; ++i)
+		{
+			if(out.pump.temperature[i] < out.setting.pump_overheat_protect)
+				pumpId_runtime.push_back(std::make_pair(i, out.pump.runtime[i]));
+		}
+		
+		// Sort ascending by the SECOND element
+		std::sort(pumpId_runtime.begin(), pumpId_runtime.end(), [](const auto& a, const auto& b) {
+		return a.second < b.second; 
+		});
+
+		out.pump.running = 0b000000;
+		out.pump.level_actual = min(out.pump.level_target, int(pumpId_runtime.size()));
+		for(int k = 0; k < out.pump.level_actual; ++ k)
+		{
+			out.pump.running |= (1 << pumpId_runtime[k].first);
+			out.pump.last_pump_rearrange_runtime[pumpId_runtime[k].first] = out.pump.runtime[pumpId_runtime[k].first];
+		}
+
+		out.pump.level_target_r = out.pump.level_target;
+	}
+	
 }
 

@@ -79,15 +79,15 @@ void Hmi::update(Out &out, Sys &sys)
 			{
 				// Home page, refresh request.
 				Serial.print("home.q0.picc=");
-				Serial.print(out.pump.level + 6);
+				Serial.print(out.pump.level_actual + 6);
 				Serial.print("\xff\xff\xff");
 
 				Serial.print("home.q1.picc=");
-				Serial.print((((out.valve.l_percent > 0) && (out.pump.level > 0)) ? 7 : 6));
+				Serial.print((((out.valve.l_percent > 0) && (out.pump.level_actual > 0)) ? 7 : 6));
 				Serial.print("\xff\xff\xff");
 
 				Serial.print("home.q2.picc=");
-				Serial.print((((out.valve.r_percent > 0) && (out.pump.level > 0)) ? 7 : 6));
+				Serial.print((((out.valve.r_percent > 0) && (out.pump.level_actual > 0)) ? 7 : 6));
 				Serial.print("\xff\xff\xff");
 
 				Serial.print("home.q3.picc=");
@@ -139,28 +139,28 @@ void Hmi::update(Out &out, Sys &sys)
 				Serial.print("\xff\xff\xff");
 
 				Serial.print("status.t7.txt=\"");
-				Serial.print(out.pump.runtime[0]);
-				Serial.print(" min\"\xff\xff\xff");
+				Serial.print(out.pump.runtime[0] / 1000);
+				Serial.print(" s\"\xff\xff\xff");
 
 				Serial.print("status.t8.txt=\"");
-				Serial.print(out.pump.runtime[1]);
-				Serial.print(" min\"\xff\xff\xff");
+				Serial.print(out.pump.runtime[1] / 1000);
+				Serial.print(" s\"\xff\xff\xff");
 
 				Serial.print("status.t9.txt=\"");
-				Serial.print(out.pump.runtime[2]);
-				Serial.print(" min\"\xff\xff\xff");
+				Serial.print(out.pump.runtime[2] / 1000);
+				Serial.print(" s\"\xff\xff\xff");
 
 				Serial.print("status.t10.txt=\"");
-				Serial.print(out.pump.runtime[3]);
-				Serial.print(" min\"\xff\xff\xff");
+				Serial.print(out.pump.runtime[3] / 1000);
+				Serial.print(" s\"\xff\xff\xff");
 
 				Serial.print("status.t11.txt=\"");
-				Serial.print(out.pump.runtime[4]);
-				Serial.print(" min\"\xff\xff\xff");
+				Serial.print(out.pump.runtime[4] / 1000);
+				Serial.print(" s\"\xff\xff\xff");
 
 				Serial.print("status.t12.txt=\"");
-				Serial.print(out.pump.runtime[5]);
-				Serial.print(" min\"\xff\xff\xff");
+				Serial.print(out.pump.runtime[5] / 1000);
+				Serial.print(" s\"\xff\xff\xff");
 
 				Serial.print("status.t13.txt=\"");
 				Serial.print(out.pump.temperature[0]);
