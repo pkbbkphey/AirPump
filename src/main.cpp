@@ -63,17 +63,42 @@ void loop()
 	// FastLED.show();
 	
 	// Determine the pump level based on input signals and settings
+	// 0:L,   1:CNC,  2:R,    3:RF,   4:MANUAL
+	// 0~100, 1~6, 	  0~100,  0~100,  1~6
 	int l_level = 0;
-	l_level = out.input_signal.level[0];
-	l_level = ((!out.setting.cnc_binded) 	&& (out.input_signal.level[1] > l_level)) ? out.input_signal.level[1] : l_level;
-	l_level = ((!out.setting.rf_binded) 	&& (out.input_signal.level[3] > l_level)) ? out.input_signal.level[3] : l_level;
-	l_level = ((!out.setting.manual_binded) && (out.input_signal.level[4] > l_level)) ? out.input_signal.level[4] : l_level;
+	l_level = double(out.input_signal.level[0]) / 14.3;
+	l_level = ((!out.setting.cnc_binded) 	&& (out.input_signal.level[1] > l_level) && (out.input_signal.state & 0b00010) >> 1) 	? out.input_signal.level[1] : l_level;
+	l_level = ((!out.setting.rf_binded) 	&& (out.input_signal.level[3] / 14.3  > l_level)) 										? out.input_signal.level[3] : l_level;
+	l_level = ((!out.setting.manual_binded) && (out.input_signal.level[4] > l_level) && (out.input_signal.state & 0b10000) >> 4) 	? out.input_signal.level[4] : l_level;
 	int r_level = 0;
-	r_level = out.input_signal.level[2];
-	r_level = ((!out.setting.cnc_binded) 	&& (out.input_signal.level[1] > r_level)) ? out.input_signal.level[1] : r_level;
-	r_level = ((!out.setting.rf_binded) 	&& (out.input_signal.level[3] > r_level)) ? out.input_signal.level[3] : r_level;
-	r_level = ((!out.setting.manual_binded) && (out.input_signal.level[4] > r_level)) ? out.input_signal.level[4] : r_level;
+	r_level = double(out.input_signal.level[2]) / 14.3;
+	r_level = ((out.setting.cnc_binded) 	&& (out.input_signal.level[1] > r_level) && (out.input_signal.state & 0b00010) >> 1) 	? out.input_signal.level[1] : r_level;
+	r_level = ((out.setting.rf_binded) 		&& (out.input_signal.level[3] / 14.3 > r_level)) 										? out.input_signal.level[3] : r_level;
+	r_level = ((out.setting.manual_binded) 	&& (out.input_signal.level[4] > r_level) && (out.input_signal.state & 0b10000) >> 4) 	? out.input_signal.level[4] : r_level;
 	out.pump.level = constrain(l_level + r_level, 0, 6);
+
+	// Update panel status
+	// out.input_signal.state = (out.input_signal.level[0] > 0);
+	// out.input_signal.state += (out.input_signal.level[1] > 15) << 1;
+	// out.input_signal.state += (out.input_signal.level[2] > 15) << 2;
+	// out.input_signal.state += (out.input_signal.level[3] > 0) << 3;
+	// out.input_signal.state += (out.input_signal.level[4] > 15) << 4;
+
+	out.input_signal.selected = (out.input_signal.level[0] / 14.3 >= l_level) && (l_level > 0);
+	out.input_signal.selected += out.setting.cnc_binded ? 
+								(((out.input_signal.state & 0b00010) && (out.input_signal.level[1] >= r_level) && (r_level > 0)) << 1) :
+								(((out.input_signal.state & 0b00010) && (out.input_signal.level[1] >= l_level) && (l_level > 0)) << 1);
+	out.input_signal.selected += ((out.input_signal.level[2] / 14.3 >= r_level) && (r_level > 0)) << 2;
+	// out.input_signal.selected += (((!out.setting.rf_binded) && (out.input_signal.level[3] / 14.3 >= l_level) && (l_level > 0)) || 
+	// 							  ((out.setting.rf_binded)  && (out.input_signal.level[3] / 14.3 >= r_level) && (r_level > 0))) << 3;
+	out.input_signal.selected += out.setting.rf_binded ?
+								(((out.input_signal.state & 0b00100) && (out.input_signal.level[3] / 14.3 >= r_level) && (r_level > 0)) << 3) :
+								(((out.input_signal.state & 0b00100) && (out.input_signal.level[3] / 14.3 >= l_level) && (l_level > 0)) << 3);
+	// out.input_signal.selected += (((!out.setting.manual_binded) && (out.input_signal.level[4] >= l_level) && (l_level > 0)) || 
+	// 							  ((out.setting.manual_binded)  && (out.input_signal.level[4] >= r_level) && (r_level > 0))) << 4;
+	out.input_signal.selected += out.setting.manual_binded ?
+								(((out.input_signal.state & 0b10000) && (out.input_signal.level[4] >= r_level) && (r_level > 0)) << 4) :
+								(((out.input_signal.state & 0b10000) && (out.input_signal.level[4] >= l_level) && (l_level > 0)) << 4);
 
 	// Determine the left and right valves percentages based on the individual target levels
 	out.valve.l_percent = (l_level >= r_level) ? 100 : (double(l_level) / double(r_level)) * 100.0;

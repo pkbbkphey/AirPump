@@ -255,6 +255,9 @@ void Hmi::update(Out &out, Sys &sys)
 				Serial.print("status.t30.txt=\"");
 				Serial.print((out.input_signal.state & 0b10000) ? "ON" : "OFF");
 				Serial.print("\"\xff\xff\xff");
+				Serial.print("status.t30.pco=");
+				Serial.print((out.input_signal.state & 0b10000) ? 2016 : 65535);	// Green if on, white if off.
+				Serial.print("\xff\xff\xff");
 
 				Serial.print("status.t31.txt=\"");
 				Serial.print((out.rf_connected) ? "\xD2\xD1\xDF\x42\xBD\xD3" : "\xCE\xB4\xDF\x42\xBD\xD3");	// 已連接 : 未連接
