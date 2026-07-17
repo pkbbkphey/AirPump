@@ -13,7 +13,8 @@ Hmi hmi;
 Mux mux;
 Out out;
 Sys sys;
-Servo FanPWM;
+Servo ServoL;
+Servo ServoR;
 
 // #define NUM_LEDS 2
 // CRGB leds[NUM_LEDS];
@@ -40,6 +41,8 @@ void setup() {
 	// FanPWM.attach(PIN_FanPWM);
 	// FanPWM.write(90);
 	analogWrite(PIN_FanPWM, 0);
+	ServoL.attach(PIN_Servo1);
+	ServoR.attach(PIN_Servo2);
 
     digitalWrite(PIN_MUX_S0, LOW);
     digitalWrite(PIN_MUX_S1, LOW);
@@ -97,11 +100,8 @@ void loop()
 								(((out.input_signal.state & 0b10000) && (out.input_signal.level[4] >= r_level) && (r_level > 0)) << 4) :
 								(((out.input_signal.state & 0b10000) && (out.input_signal.level[4] >= l_level) && (l_level > 0)) << 4);
 
-	// Determine the left and right valves percentages based on the individual target levels
-	out.valve.l_percent = (l_level >= r_level) ? 100 : (double(l_level) / double(r_level)) * 100.0;
-	out.valve.r_percent = (r_level >= l_level) ? 100 : (double(r_level) / double(l_level)) * 100.0;
 
-	// Pump manager
+	// =============== Pumps manager ===================
 	// Calculate individual pump runtime
 	uint32_t pump_rearrange_dt = millis() - out.pump.last_pump_rearrange_time;
 	for(int i = 0; i < 6; ++ i)
@@ -149,6 +149,51 @@ void loop()
 
 		out.pump.level_target_r = out.pump.level_target;
 	}
+
+	// Write the results to pump relays
+	digitalWrite(PIN_PumpRelay1, out.pump.running & 0b000001);
+	digitalWrite(PIN_PumpRelay2, out.pump.running & 0b000010);
+	digitalWrite(PIN_PumpRelay3, out.pump.running & 0b000100);
+	digitalWrite(PIN_PumpRelay4, out.pump.running & 0b001000);
+	digitalWrite(PIN_PumpRelay5, out.pump.running & 0b010000);
+	digitalWrite(PIN_PumpRelay6, out.pump.running & 0b100000);
+
 	
+	// =============== Valve manager ================
+	// Determine the left and right valves percentages based on the individual target levels
+	if(out.pump.level_target != 0)	// Laziness logic: don't move the servo until it is required to.
+	{
+		out.valve.l_percent = (l_level >= r_level) ? 100 : (double(l_level) / double(r_level)) * 100.0;
+		out.valve.r_percent = (r_level >= l_level) ? 100 : (double(r_level) / double(l_level)) * 100.0;
+
+		if(out.valve.l_percent_r != out.valve.l_percent)
+		{
+			out.valve.l_last_moving_time = millis();
+			out.valve.l_percent_r = out.valve.l_percent;
+		}
+		if(out.valve.r_percent_r != out.valve.r_percent)
+		{
+			out.valve.r_last_moving_time = millis();
+			out.valve.r_percent_r = out.valve.r_percent;
+		}
+	}
+
+	// Write the results to servos
+	if((millis() - out.valve.l_last_moving_time) <= out.valve.active_time)
+	{
+		ServoL.attach(PIN_Servo1);
+		ServoL.write(map(out.valve.l_percent, 0, 100, 147, 41));
+	}
+	else
+		ServoL.detach();
+
+	if((millis() - out.valve.r_last_moving_time) <= out.valve.active_time)
+	{
+		ServoR.attach(PIN_Servo2);
+		ServoR.write(map(out.valve.r_percent, 0, 100, 145, 35));
+	}
+	else
+		ServoR.detach();
+
 }
 

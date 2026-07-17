@@ -52,8 +52,13 @@ struct Out
 
 	struct valve
 	{
-		int l_percent = 0;	// 0 to 100, 0 is fully closed, 100 is fully open
-		int r_percent = 0;	// 0 to 100, 0 is fully closed, 100 is fully open
+		int l_percent = 0;								// Target for L servo. 0 to 100, 0 is fully closed, 100 is fully open
+		int r_percent = 0;								// Target for R servo. 0 to 100, 0 is fully closed, 100 is fully open
+		int l_percent_r = 0;							// record of l_percent
+		int r_percent_r = 0;							// record of r_percent
+		uint32_t l_last_moving_time = 0;				// in milliseconds
+		uint32_t r_last_moving_time = 0;				// in milliseconds
+		const uint32_t active_time = 2000;				// Trigger the servos within this duration after target change, in milliseconds
 	};
 	struct valve valve;
 
