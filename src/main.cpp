@@ -38,8 +38,7 @@ void setup() {
 	pinMode(PIN_MUX2_SIG, INPUT);
 	pinMode(PIN_WLED, OUTPUT);
 	pinMode(PIN_LED, OUTPUT);
-	// FanPWM.attach(PIN_FanPWM);
-	// FanPWM.write(90);
+
 	analogWrite(PIN_FanPWM, 0);
 	ServoL.attach(PIN_Servo1);
 	ServoR.attach(PIN_Servo2);
@@ -103,28 +102,22 @@ void loop()
 
 	// =============== Pumps manager ===================
 	// Calculate individual pump runtime
-	uint32_t pump_rearrange_dt = millis() - out.pump.last_pump_rearrange_time;
+	uint32_t pump_rearrange_dt = millis() - out.pump.last_rearrange_time;
 	for(int i = 0; i < 6; ++ i)
 	{
 		if(out.pump.running & (1 << i))
 		{
-			out.pump.runtime[i] = out.pump.last_pump_rearrange_runtime[i] + pump_rearrange_dt;
+			out.pump.runtime[i] = out.pump.last_rearrange_runtime[i] + pump_rearrange_dt;
 		}
 	}
 
 	// Pumps rearranging
-	if((pump_rearrange_dt >= out.pump.pump_rearrange_time) ||
+	if((pump_rearrange_dt >= out.pump.rearrange_period) ||
 		(out.pump.level_target != out.pump.level_target_r) ||
 		sys.errors[0])
 	{
 		uint32_t _now = millis();
-		out.pump.last_pump_rearrange_time = _now;
-		// out.pump.last_pump_rearrange_time_ind[0] = now;
-		// out.pump.last_pump_rearrange_time_ind[1] = now;
-		// out.pump.last_pump_rearrange_time_ind[2] = now;
-		// out.pump.last_pump_rearrange_time_ind[3] = now;
-		// out.pump.last_pump_rearrange_time_ind[4] = now;
-		// out.pump.last_pump_rearrange_time_ind[5] = now;
+		out.pump.last_rearrange_time = _now;
 
 		// Push the available (not overtemp) pumps into a map
 		std::vector<std::pair<int, uint32_t>> pumpId_runtime;
@@ -144,7 +137,7 @@ void loop()
 		for(int k = 0; k < out.pump.level_actual; ++ k)
 		{
 			out.pump.running |= (1 << pumpId_runtime[k].first);
-			out.pump.last_pump_rearrange_runtime[pumpId_runtime[k].first] = out.pump.runtime[pumpId_runtime[k].first];
+			out.pump.last_rearrange_runtime[pumpId_runtime[k].first] = out.pump.runtime[pumpId_runtime[k].first];
 		}
 
 		out.pump.level_target_r = out.pump.level_target;
@@ -195,5 +188,22 @@ void loop()
 	else
 		ServoR.detach();
 
+	// =============== Fan manager ================
+	int max_temp = -1000;
+	max_temp = max(out.pump.temperature[0], max_temp);
+	max_temp = max(out.pump.temperature[1], max_temp);
+	max_temp = max(out.pump.temperature[2], max_temp);
+	max_temp = max(out.pump.temperature[3], max_temp);
+	max_temp = max(out.pump.temperature[4], max_temp);
+	max_temp = max(out.pump.temperature[5], max_temp);
+
+	// out.fan_level = constrain(100 - 20 * (max_temp - out.setting.pump_overheat_protect), 0, 100);
+	float fan_level_new = 
+		constrain(100 - 13 * (out.setting.pump_overheat_protect - max_temp), 0, 101) * (1 - out.fan_rate) +
+		out.fan_level_r * out.fan_rate;
+	out.fan_level_r = fan_level_new;
+	out.fan_level = constrain((int)fan_level_new, 0, 100);
+	
+	analogWrite(PIN_FanPWM, map(out.fan_level, 0, 100, 0, 255));
 }
 

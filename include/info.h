@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 
-const String MCU_VERSION = "v1.2";
-const String MCU_BUILD_DATE ="2026 / 07 / 13";
+const String MCU_VERSION = "v1.3";
+const String MCU_BUILD_DATE ="2026 / 07 / 17";
 
 #endif

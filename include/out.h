@@ -34,8 +34,6 @@
 // Main data structure for hardware status and settings
 struct Out
 {
-	// String message = "一切正常";
-
 	struct pump
 	{
 		int level_target = 0;							// 0 to 6, the target number of pumps running
@@ -44,9 +42,9 @@ struct Out
 		int running = 0b000000;							// bit5: pump6, bit4: pump5, bit3: pump4, bit2: pump3, bit1: pump2, bit0: pump1
 		uint32_t runtime[6] = {0, 0, 0, 0, 0, 0}; 		// runtime milliseconds for pumps 1 to 6
 		int temperature[6] = {25, 25, 25, 25, 25, 25}; 	// temperature sensors 1 to 6
-		const uint32_t pump_rearrange_time = 60000;		// in milliseconds
-		uint32_t last_pump_rearrange_time = 0;			// in milliseconds
-		uint32_t last_pump_rearrange_runtime[6] = {0, 0, 0, 0, 0, 0};	// individual runtime the moment before rearrange, in milliseconds
+		const uint32_t rearrange_period = 60000;		// in milliseconds
+		uint32_t last_rearrange_time = 0;				// in milliseconds
+		uint32_t last_rearrange_runtime[6] = {0, 0, 0, 0, 0, 0};	// individual runtime the moment before rearrange, in milliseconds
 	};
     struct pump pump;
 
@@ -62,16 +60,8 @@ struct Out
 	};
 	struct valve valve;
 
-	// struct output_flow	// replaced by valve and pump
-	// {
-	// 	int state = 0b00;					// bit1: R, bit0: L
-	// 	int level = 0;						// 0 to 6
-	// };
-    // struct output_flow output_flow;
-
 	struct input_signal
 	{
-		// int selected = -1;					// {-1: none,0: L, 1: CNC, 2: R, 3: RF, 4: MANUAL}
 		int selected = 0b00000;					// bit4: MANUAL, bit3: RF, bit2: R, bit1: CNC, bit0: L
 		int state = 0b00000;					// bit4: MANUAL, bit3: RF, bit2: R, bit1: CNC, bit0: L
 		int level[5] = {0, 1, 0, 0, 1}; 		// levels for L, CNC, R, RF, MANUAL; 0-100, 1-6, 0-100, 0-100, 1-6
@@ -80,7 +70,10 @@ struct Out
 	};
     struct input_signal input_signal;
 
+	const float fan_rate = 0.995;			// Smoothing factor
 	int fan_level = 0;						// 0 to 100
+	float fan_level_r = 0;					// record
+
 	unsigned long machime_runtime = 0;		// in minutes
 	bool rf_connected = false;				// nRF24l01 connection status
 
@@ -97,7 +90,7 @@ struct Out
 
 		bool valve_auto_release = 0;		// 夾管筏自動釋放	; 0: disable, 1: enable
 		int valve_auto_release_time = 30;	// 自動釋放時長		; in seconds
-		int pump_overheat_protect = 30;		// 氣泵過熱溫度保護	; in degree Celsius
+		int pump_overheat_protect = 35;		// 氣泵過熱溫度保護	; in degree Celsius
 
 		// const String hmi_version = "2026 / 01 / 30 | v1.0";
 		const String mcu_version = String(MCU_BUILD_DATE) + "  |  " + String(MCU_VERSION);
